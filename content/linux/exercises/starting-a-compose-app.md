@@ -1,0 +1,74 @@
+# Starting a Compose App
+
+By the end of this exercise, you should be able to:
+
+ - Read a basic docker compose yaml file and understand what components it is declaring
+ - Start, stop, and inspect the logs of an application defined by a docker compose file
+
+## Inspecting a Compose App
+
+1.  Download the Dockercoins app from github:
+
+    ```bash
+    [centos@node-0 ~]$ git clone -b ee3.0 \
+        https://github.com/docker-training/orchestration-workshop.git
+    [centos@node-0 ~]$ cd orchestration-workshop/dockercoins
+    ```
+
+    This app consists of 5 services: a random number generator `rng`, a `hasher`, a backend `worker`, a `redis` queue, and a `web` frontend; the code you just downloaded has the source code for each process and a Dockerfile to containerize each of them.
+
+2.  Have a brief look at the source for each component of your application. Each folder under `~/orchestration-workshop/ dockercoins` contains the application logic for the component, and a Dockerfile for building that logic into a Docker image. We've pre-built these images as `training/dockercoins-rng:1.0`, `training/dockercoins-worker:1.0` et cetera, so no need to build them yourself.
+
+3.  Have a look in `docker-compose.yml`; especially notice the `services` section. Each block here defines a different Docker service. They each have exactly one image which containers for this service will be started from, as well as other configuration details like network connections and port exposures. Full syntax for Docker Compose files can be found here: [https://dockr.ly/2iHUpeX](https://dockr.ly/2iHUpeX).
+
+## Starting the App
+
+1.  Stand up the app:
+
+    ```bash
+    [centos@node-0 dockercoins]$ docker-compose up
+    ```
+
+    After a moment, your app should be running; visit `<node 0 public IP>:8000` to see the web frontend visualizing your rate of Dockercoin mining.
+
+2.  Logs from all the running services are sent to STDOUT. Let's send this to the background instead; kill the app with `CTRL+C`, sending a `SIGTERM` to all running processes; some exit immediately, while others wait for a 10s timeout before being killed by a subsequent `SIGKILL`. Start the app again in the background:
+
+    ```bash
+    [centos@node-0 dockercoins]$ docker-compose up -d
+    ```
+
+3.  Check out which containers are running thanks to Compose:
+
+    ```bash
+    [centos@node-0 dockercoins]$ docker-compose ps
+
+            Name                      Command               State          Ports         
+    ------------------------------------------------------------------------------------
+    dockercoins_hasher_1   ruby hasher.rb                   Up      0.0.0.0:8002->80/tcp 
+    dockercoins_redis_1    docker-entrypoint.sh redis ...   Up      6379/tcp             
+    dockercoins_rng_1      python rng.py                    Up      0.0.0.0:8001->80/tcp 
+    dockercoins_webui_1    node webui.js                    Up      0.0.0.0:8000->80/tcp 
+    dockercoins_worker_1   python worker.py                 Up 
+    ```
+
+4.  Compare this to the usual `docker container ls`; do you notice any differences? If not, start a couple of extra containers using `docker container run...`, and check again.
+
+## Viewing Logs
+
+1.  See logs from a Compose-managed app via:
+
+    ```bash
+    [centos@node-0 dockercoins]$ docker-compose logs
+    ```
+
+2.  The logging API in Compose follows the main Docker logging API closely. For example, try following the tail of the logs just like you would for regular container logs:
+
+    ```bash
+    [centos@node-0 dockercoins]$ docker-compose logs --tail 10 --follow
+    ```
+
+    Note that when following a log, `CTRL+S` and `CTRL+Q` pauses and resumes live following; `CTRL+C` exits follow mode as usual.
+
+## Conclusion
+
+In this exercise, you saw how to start a pre-defined Compose app, and how to inspect its logs. Application logic was defined in each of the five images we used to create containers for the app, but the manner in which those containers were created was defined in the `docker-compose.yml` file; all runtime configuration for each container is captured in this manifest. Finally, the different elements of Dockercoins communicated with each other via service name; the Docker daemon's internal DNS was able to resolve traffic destined for a service, into the IP or MAC address of the corresponding container.
