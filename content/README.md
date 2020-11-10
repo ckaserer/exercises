@@ -79,6 +79,10 @@ Please note that examples of expected output have in some places been truncated 
  - [Updating Applications](windows/exercises/updating-applications.md)
  - [Installing Kubernetes](windows/exercises/kube-install.md)
  - [Kubernetes Orchestration](windows/exercises/kube-orchestration.md)
+ - [Setup Kubectl](windows/exercises/kube-windows-kubectl.md)
+ - [Setup Kubeconfig](windows/exercises/kube-windows-kubeconfig.md)
+ - [Setup okteto](windows/exercises/kube-windows-okteto.md)
+ - [Remote debugging python](windows/exercises/kube-windows-python-remote-debug.md)
  - [Provisioning Kube Config](windows/exercises/provisioning-kube-config.md)
  - [Kubernetes Networking](windows/exercises/kube-networking.md)
  - [Cleaning up Docker Resources](windows/exercises/cleaning-up-docker-resources.md)
@@ -96,6 +100,6 @@ Please note that examples of expected output have in some places been truncated 
  - [Instructor Demo: Kubernetes Basics](windows/exercises/kubernetes-demo.md)
  - [Instructor Demo: Docker Compose](windows/exercises/docker-compose-demo.md)
 
-<a href='static/fundamentals-exercises.tgz' download><button type="button">Download offline copy of this website</button></a>
+<a href='static/containerization-exercises.tgz' download><button type="button">Download offline copy of this website</button></a>
 
 All content &copy; 2020 Gepardec IT Services GmbH

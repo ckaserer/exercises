@@ -27,6 +27,7 @@ By the end of this exercise, you should be able to:
     ```bash
     [centos@node-0 ~]$ docker container run --name some-postgres \
         -v db_backing:/var/lib/postgresql/data \
+        -e POSTGRES_PASSWORD=password \
         -d postgres:9-alpine
     ```
 
@@ -75,6 +76,7 @@ By the end of this exercise, you should be able to:
     [centos@node-0 ~]$ docker container run \
         --name some-postgres \
         -v db_backing:/var/lib/postgresql/data \
+        -e POSTGRES_PASSWORD=password \
         -d postgres:9-alpine
     ```
 
