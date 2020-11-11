@@ -65,6 +65,8 @@ By the end of this exercise, you should be able to:
               configMapKeyRef:
                 name: dbconfig
                 key: db
+          - name: POSTGRES_PASSWORD
+            value: mypassword
     ```
 
     Here we're populating the environment variables `POSTGRES_USER` and `POSTGRES_DB` from our configMap, under the `containers:env` specification. Notice that the pod definition itself makes no reference to the literal values of these environment variables; we can reconfigure our database (say for deployment in a different environment) by swapping out our `dbconfig` configMap, and leaving our pod definition untouched.
