@@ -18,7 +18,7 @@ By the end of this exercise, you should be able to:
    kube\config
    ```
 
-## Add KUBECONFIG to PATH
+## Add KUBECONFIG as new environent variable
 
 1. Open the Start Search, type in "env", and choose "Edit the system environment variable":
 
@@ -28,7 +28,7 @@ By the end of this exercise, you should be able to:
 
    <img src="../media/windows-path-2-system-properties.png" style="height: auto !important; width: 600px !important" />
 
-3. ADD a KUBECONFIG variable with location of your "kube/config" as value.
+3. ADD a new KUBECONFIG variable with the location of your "kube/config" file (not folder) as value.
     
    <img src="../media/windows-path-3-select-row-and-edit.png" style="height: auto !important; width: 600px !important" />
 

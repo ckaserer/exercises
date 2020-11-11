@@ -12,7 +12,8 @@ In this demo, we'll illustrate:
     
     ```bash
     [centos@node-0 ~]$ sudo kubeadm init --pod-network-cidr=192.168.0.0/16 \
-        --ignore-preflight-errors=SystemVerification
+        --ignore-preflight-errors=SystemVerification \
+        --control-plane-endpoint $(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
     ```
 
     If successful, the output will end with a join command:
