@@ -152,6 +152,8 @@ By the end of this exercise, you should be able to:
               configMapKeyRef:
                 name: dbconfig
                 key: db
+          - name: POSTGRES_PASSWORD
+            value: mypassword
       volumes:
         - name: dbinit-vol
           configMap:
