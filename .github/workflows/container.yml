@@ -1,0 +1,102 @@
+---
+name: Container Build
+
+'on':
+  push:
+    branches:
+      - main
+    tags-ignore:
+      - '*'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    name: Build & Push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Create a new tag
+        uses: phish108/autotag-action@1.1.37
+        id: autotag
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Create a new release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.autotag.outputs.new-tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true  
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: |
+            latest=true
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}},value=${{ steps.autotag.outputs.new-tag }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+      
+  github-page:
+    name: Release Github Page
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      
+      - name: Run make.sh
+        run: chmod 777 ./make-docs.sh && ./make-docs.sh
+
+      - name: Publish
+        uses: s0/git-publish-subdir-action@develop
+        env:
+          REPO: self
+          BRANCH: docs # The branch name where you want to push the assets
+          FOLDER: docs # The directory where your assets are generated
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHub will automatically add this - you don't need to bother getting a token
+          MESSAGE: "Build: ({sha}) {msg}" # The commit message
+          SQUASH_HISTORY: true
+          
+  notify:
+    name: Slack Notifications
+    runs-on: ubuntu-latest
+    if: ${{ failure() }}
+    needs:
+      - build
+      - github-page
+    steps:
+      - name: Notify Slack channel on failure
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_ICON: https://github.com/ckaserer/logos/raw/master/docker.png
+          SLACK_USERNAME: ${{ github.repository }}
+          SLACK_COLOR: '#ff0033'
+          SLACK_FOOTER: ''
+...

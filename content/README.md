@@ -99,4 +99,4 @@ Please note that examples of expected output have in some places been truncated 
  - [Instructor Demo: Docker Compose](windows/exercises/docker-compose-demo.md)
 
 -->
-<a href='static/containerization-exercises.tgz' download><button type="button">Download offline copy of this website</button></a>
+<a href='static/exercises.tgz' download><button type="button">Download offline copy of this website</button></a>
