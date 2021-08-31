@@ -26,10 +26,10 @@ In this first part we will walk through common commands for creating and manipul
     `pwd` stands for Print Working Directory. You should see something like:
 
     ```bash
-    /Users/billmills
+    /Users/ckaserer
     ```
 
-    This means your terminal is currently in the `billmills` folder, which itself is in the `/Users` folder (yours will have different folder names, but the logic is the same).
+    This means your terminal is currently in the `ckaserer` folder, which itself is in the `/Users` folder (yours will have different folder names, but the logic is the same).
 
 3.  List the files and folders in your current directory:
 
@@ -102,11 +102,11 @@ In this first part we will walk through common commands for creating and manipul
     ```bash
     $ pwd
 
-    /Users/billmills/Desktop/demo-dir
+    /Users/ckaserer/Desktop/demo-dir
 
     $ cd ..
     $ pwd
-    /Users/billmills/Desktop
+    /Users/ckaserer/Desktop
     ```
 
     `cd ..` took us one level up in our directory tree, from `demo-dir` back out to the directory that contains it, `Desktop` in my example.

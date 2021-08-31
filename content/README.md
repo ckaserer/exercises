@@ -4,11 +4,11 @@ Please note that examples of expected output have in some places been truncated 
 
 ### Linux Exercises:
 
-*Scroll down for Windows-native exercises*
+<!--*Scroll down for Windows-native exercises*-->
 
 **New to Bash?** See the appendix *A Brief Introduction to Bash* for a very brief tour of most of the bash commands we'll use in this workshop.
 
-**Windows Users doing Linux-based exercises**: Please note that in all exercises we will use Unix style paths using forward slashes (‘/‘) instead of backslashes (‘\‘). On Windows you can work directly with such paths by either using a **Bash** terminal or a **Powershell** terminal. Powershell can work with both Windows and Unix style paths.
+<!-- **Windows Users doing Linux-based exercises**: Please note that in all exercises we will use Unix style paths using forward slashes (‘/‘) instead of backslashes (‘\‘). On Windows you can work directly with such paths by either using a **Bash** terminal or a **Powershell** terminal. Powershell can work with both Windows and Unix style paths. -->
 
 #### Exercises
 
@@ -24,23 +24,23 @@ Please note that examples of expected output have in some places been truncated 
  - [Managing Images](linux/exercises/managing-images.md)
  - [Database Volumes](linux/exercises/database-volumes.md)
  - [Introduction to Container Networking](linux/exercises/introduction-to-container-networking.md)
- - [Container Port Mapping](linux/exercises/container-port-mapping.md)
- - [Creating a Swarm](linux/exercises/creating-a-swarm.md)
- - [Starting a Service](linux/exercises/starting-a-service.md)
- - [Node Failure Recovery](linux/exercises/node-failure-recovery.md)
- - [Swarm Scheduling](linux/exercises/swarm-scheduling.md)
- - [Provisioning Swarm Configuration](linux/exercises/provisioning-swarm-config.md)
- - [Routing to Services](linux/exercises/routing-to-services.md)
- - [Updating Applications](linux/exercises/updating-applications.md)
+ - [Container Port Mapping](linux/exercises/container-port-mapping.md) 
+<!-- - [Creating a Swarm](linux/exercises/creating-a-swarm.md) -->
+<!-- - [Starting a Service](linux/exercises/starting-a-service.md) --> 
+<!-- - [Node Failure Recovery](linux/exercises/node-failure-recovery.md) --> 
+<!-- - [Swarm Scheduling](linux/exercises/swarm-scheduling.md) --> 
+<!-- - [Provisioning Swarm Configuration](linux/exercises/provisioning-swarm-config.md) --> 
+<!-- - [Routing to Services](linux/exercises/routing-to-services.md) --> 
+<!-- - [Updating Applications](linux/exercises/updating-applications.md) --> 
+ - [Starting a Compose App](linux/exercises/starting-a-compose-app.md)
+ - [Scaling a Compose App](linux/exercises/scaling-a-compose-app.md)
  - [Installing Kubernetes](linux/exercises/kube-install.md)
  - [Kubernetes Orchestration](linux/exercises/kube-orchestration.md)
  - [Provisioning Kube Config](linux/exercises/provisioning-kube-config.md)
  - [Kubernetes Networking](linux/exercises/kube-networking.md)
  - [Cleaning up Docker Resources](linux/exercises/cleaning-up-docker-resources.md)
  - [Inspection Commands](linux/exercises/inspection-commands.md)
- - [Docker Plugins](linux/exercises/plugins.md)
- - [Starting a Compose App](linux/exercises/starting-a-compose-app.md)
- - [Scaling a Compose App](linux/exercises/scaling-a-compose-app.md)
+ <!-- - [Docker Plugins](linux/exercises/plugins.md) -->
  - [Appendix: A Brief Introduction to Bash](linux/exercises/command-line-intro.md)
 
 #### Instructor Demos
@@ -49,15 +49,15 @@ Please note that examples of expected output have in some places been truncated 
  - [Instructor Demo: Creating Images](linux/exercises/creating-images-demo.md)
  - [Instructor Demo: Basic Volume Usage](linux/exercises/basic-volume-usage-demo.md)
  - [Instructor Demo: Single Host Networks](linux/exercises/single-host-network-demo.md)
- - [Instructor Demo: Self-Healing Swarm](linux/exercises/self-healing-swarm-demo.md)
- - [Instructor Demo: Kubernetes Basics](linux/exercises/kubernetes-demo.md)
  - [Instructor Demo: Docker Compose](linux/exercises/docker-compose-demo.md)
+ <!-- - [Instructor Demo: Self-Healing Swarm](linux/exercises/self-healing-swarm-demo.md) -->
+ - [Instructor Demo: Kubernetes Basics](linux/exercises/kubernetes-demo.md)
 
+<!--
 ### Windows Exercises:
 
 #### Exercises
 
- <!-- - <a href="https://github.com/docker-training/suggested-solutions/blob/master/primers/strigo-intro.md" target="_blank">Introduction to Strigo</a> -->
  - [Running and Inspecting a Container](windows/exercises/running-and-inspecting-containers.md)
  - [Interactive Containers](windows/exercises/interactive-containers.md)
  - [Detached Containers and Logging](windows/exercises/detached-containers-and-logging.md)
@@ -100,4 +100,5 @@ Please note that examples of expected output have in some places been truncated 
  - [Instructor Demo: Kubernetes Basics](windows/exercises/kubernetes-demo.md)
  - [Instructor Demo: Docker Compose](windows/exercises/docker-compose-demo.md)
 
+-->
 <a href='static/containerization-exercises.tgz' download><button type="button">Download offline copy of this website</button></a>
