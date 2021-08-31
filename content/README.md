@@ -2,15 +2,13 @@
 
 Please note that examples of expected output have in some places been truncated or abbreviated to better fit narrow screen widths. These examples are rough guides only; if you see more information in your terminal than in the text, that is expected.
 
-### Linux Exercises:
+### Exercises:
 
 <!--*Scroll down for Windows-native exercises*-->
 
 **New to Bash?** See the appendix *A Brief Introduction to Bash* for a very brief tour of most of the bash commands we'll use in this workshop.
 
 <!-- **Windows Users doing Linux-based exercises**: Please note that in all exercises we will use Unix style paths using forward slashes (‘/‘) instead of backslashes (‘\‘). On Windows you can work directly with such paths by either using a **Bash** terminal or a **Powershell** terminal. Powershell can work with both Windows and Unix style paths. -->
-
-#### Exercises
 
  <!-- - <a href="https://github.com/docker-training/suggested-solutions/blob/master/primers/strigo-intro.md" target="_blank">Introduction to Strigo</a> --> 
  - [Running and Inspecting a Container](linux/exercises/running-and-inspecting-containers.md)
