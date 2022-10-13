@@ -1,0 +1,197 @@
+<html>
+<head>
+    <title>kubernetes-demo.md</title>
+    <link href='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u' crossorigin='anonymous'>
+    <link href="../../app.css" rel="stylesheet" >
+</head>
+<body>
+    <nav class="navbar navbar-default">
+    <div class="container">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../index.html">Excercises</a> 
+        <h1 class="navbar-title"><!-- insert docker icon--></h1>
+        
+        </div>
+    </div><!-- /.container-fluid -->
+    </nav>
+    <div class="container">
+    <div class="row">
+        <div class="content">
+            <h1 id="instructor-demo-kubernetes-basics">Instructor Demo: Kubernetes Basics</h1>
+<p>In this demo, we&#39;ll illustrate:</p>
+<ul>
+<li>Setting up a Kubernetes cluster with one master and two nodes</li>
+<li>Scheduling a pod, including the effect of taints on scheduling</li>
+<li>Namespaces shared by containers in a pod</li>
+</ul>
+<h2 id="initializing-kubernetes">Initializing Kubernetes</h2>
+<ol>
+<li><p>On <code>node-0</code>, initialize the cluster with <code>kubeadm</code>:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ sudo kubeadm init --pod-network-cidr=192.168.0.0/16 \
+    --ignore-preflight-errors=SystemVerification \
+    --control-plane-endpoint $(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+</code></pre>
+<p>If successful, the output will end with a join command:</p>
+<pre><code class="lang-bash">...
+You can now join any number of machines by running the following on each node
+as root:
+
+  kubeadm join 10.10.29.54:6443 --token xxx --discovery-token-ca-cert-hash sha256:yyy
+</code></pre>
+</li>
+<li><p>To start using you cluster, you need to run:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ mkdir -p $HOME/.kube
+[centos@node-0 ~]$ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+[centos@node-0 ~]$ sudo chown $(id -u):$(id -g) $HOME/.kube/config
+</code></pre>
+</li>
+<li><p>List all your nodes in the cluster:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl get nodes
+</code></pre>
+<p>Which should output something like:</p>
+<pre><code class="lang-bash">NAME      STATUS     ROLES     AGE       VERSION
+node-0    NotReady   master    2h        v1.11.1
+</code></pre>
+<p>The <code>NotReady</code> status indicates that we must install a network for our cluster.</p>
+</li>
+<li><p>Let&#39;s install the Calico network driver:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl apply -f https://bit.ly/2CubzwM
+</code></pre>
+</li>
+<li><p>After a moment, if we list nodes again, ours should be ready:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl get nodes -w
+NAME      STATUS     ROLES     AGE       VERSION
+node-0    NotReady   master    1m        v1.11.1
+node-0    NotReady   master    1m        v1.11.1
+node-0    NotReady   master    1m        v1.11.1
+node-0    Ready     master    2m        v1.11.1
+node-0    Ready     master    2m        v1.11.1
+</code></pre>
+</li>
+</ol>
+<h2 id="exploring-kubernetes-scheduling">Exploring Kubernetes Scheduling</h2>
+<ol>
+<li><p>Let&#39;s create a <code>demo-pod.yaml</code> file on <code>node-0</code> after enabling Kubernetes on this single node:</p>
+<pre><code class="lang-bash">apiVersion: v1
+kind: Pod
+metadata:
+  name: demo-pod
+spec:
+  volumes:
+  - name: shared-data
+    emptyDir: {}
+  containers:
+  - name: nginx
+    image: nginx
+  - name: mydemo
+    image: centos:7
+    command: [&quot;ping&quot;, &quot;8.8.8.8&quot;]
+</code></pre>
+</li>
+<li><p>Deploy the pod:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl create -f demo-pod.yaml
+</code></pre>
+</li>
+<li><p>Check to see if the pod is running:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl get pod demo-pod
+
+NAME       READY     STATUS    RESTARTS   AGE
+demo-pod   0/2       Pending   0          7s
+</code></pre>
+<p>The status should be stuck in pending. Why is that?</p>
+</li>
+<li><p>Let&#39;s attempt to troubleshoot by obtaining some information about the pod:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl describe pod demo-pod
+</code></pre>
+<p>In the bottom section titled <code>Events:</code>, we should see something like this:</p>
+<pre><code class="lang-bash">...
+Events:
+  Type     Reason            ...  Message
+  ----     ------            ...  -------
+  Warning  FailedScheduling  ...  0/1 nodes are available: 1 node(s) 
+                                  had taints that the pod didn&#39;t tolerate.
+</code></pre>
+<p>Note how it states that the one node in your cluster has a taint, which is Kubernetes&#39;s way of saying there&#39;s a reason you might not want to schedule pods there.</p>
+</li>
+<li><p>Get some state and config information about your single kubernetes node:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl describe nodes
+</code></pre>
+<p>If we scroll a little, we should see a field titled <code>Taints</code>, and it should say something like:</p>
+<pre><code class="lang-bash">Taints:  node-role.kubernetes.io/master:NoSchedule
+</code></pre>
+<p>By default, Kubernetes masters carry a taint that disallows scheduling pods on them. While this can be overridden, it is best practice to not allow pods to get scheduled on master nodes, in order to ensure the stability of your cluster.</p>
+</li>
+<li><p>Execute the join command you found above when initializing Kubernetes on <code>node-1</code> and <code>node-2</code> (you&#39;ll need to add <code>sudo</code> to the start, and <code>--ignore-preflight-errors=SystemVerification</code> to the end), and then check the status back on <code>node-0</code>:</p>
+<pre><code class="lang-bash">[centos@node-1 ~]$ sudo kubeadm join...--ignore-preflight-errors=SystemVerification
+[centos@node-2 ~]$ sudo kubeadm join...--ignore-preflight-errors=SystemVerification
+[centos@node-0 ~]$ kubectl get nodes
+</code></pre>
+<p>After a few moments, there should be three nodes listed - all with the <code>Ready</code> status.</p>
+</li>
+<li><p>Let&#39;s see what system pods are running on our cluster:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl get pods -n kube-system
+</code></pre>
+<p>which results in something similar to this:</p>
+<pre><code class="lang-bash">NAME                                       READY     STATUS    RESTARTS   AGE
+calico-etcd-pfhj4                          1/1       Running   1          5h
+calico-kube-controllers-559c657d6d-ztk8c   1/1       Running   1          5h
+calico-node-89k9v                          2/2       Running   0          4h
+calico-node-brqxz                          2/2       Running   2          5h
+calico-node-zsmh2                          2/2       Running   1          41s
+coredns-78fcdf6894-gtj87                   1/1       Running   1          5h
+coredns-78fcdf6894-nz2kw                   1/1       Running   1          5h
+etcd-node-0                                1/1       Running   1          5h
+kube-apiserver-node-0                      1/1       Running   1          5h
+kube-controller-manager-node-0             1/1       Running   1          5h
+kube-proxy-qxfzt                           1/1       Running   0          41s
+kube-proxy-vgrtm                           1/1       Running   0          4h
+kube-proxy-ws2z5                           1/1       Running   0          5h
+kube-scheduler-node-0                      1/1       Running   1          5h
+</code></pre>
+<p>We can see the pods running on the master: etcd, api-server, controller manager and scheduler, as well as calico and DNS infrastructure pods deployed when we installed calico.</p>
+</li>
+<li><p>Finally, let&#39;s check the status of our demo pod now:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl get pod demo-pod
+</code></pre>
+<p>Everything should be working correctly with 2/2 containers in the pod running, now that there are un-tainted nodes for the pod to get scheduled on.</p>
+</li>
+</ol>
+<h2 id="exploring-containers-in-a-pod">Exploring Containers in a Pod</h2>
+<ol>
+<li><p>Let&#39;s interact with the centos container running in demo-pod by getting a shell in it:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl exec -it -c mydemo demo-pod -- /bin/bash
+</code></pre>
+<p>Try listing the processes in this container:</p>
+<pre><code class="lang-bash">[root@demo-pod /]# ps -aux    
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root         1  0.0  0.0  24860  1992 ?        Ss   14:48   0:00 ping 8.8.8.8
+root         5  0.0  0.0  11832  3036 pts/0    Ss   14:48   0:00 /bin/bash
+root        20  0.0  0.0  51720  3508 pts/0    R+   14:48   0:00 ps -aux
+</code></pre>
+<p>We can see the ping process we containerized in our yaml file running as PID 1 inside this container, just like we saw for plain containers.</p>
+</li>
+<li><p>Try reaching Nginx:</p>
+<pre><code class="lang-bash">[root@demo-pod /]# curl localhost:80
+</code></pre>
+<p>You should see the HTML for the default nginx landing page. Notice the difference here from a regular container; we were able to reach our nginx deployment from our centos container on a port on localhost. The nginx and centos containers share a network namespace and therefore all their ports, since they are part of the same pod.</p>
+</li>
+</ol>
+<h2 id="conclusion">Conclusion</h2>
+<p>In this demo, we saw two scheduling innovations Kubernetes offers: taints, which provide &#39;anti-affinity&#39;, or reasons not to schedule a pod on a given node; and pods, which are groups of containers that are always scheduled on the same node, and share network, IPC and hostname namespaces. These are both examples of Kubernetes&#39;s highly expressive scheduling, and are both difficult to reproduce with the simpler scheduling offered by Swarm.</p>
+
+        </div>        
+    </div>
+    <div class="row">
+        <ul class="mt-article-pagination" style="display:block;">
+        </ul>
+    </div>
+</div>
+    <div class="footer"></div>
+</body>

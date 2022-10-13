@@ -1,0 +1,117 @@
+<html>
+<head>
+    <title>kube-install.md</title>
+    <link href='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u' crossorigin='anonymous'>
+    <link href="../../app.css" rel="stylesheet" >
+</head>
+<body>
+    <nav class="navbar navbar-default">
+    <div class="container">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../index.html">Excercises</a> 
+        <h1 class="navbar-title"><!-- insert docker icon--></h1>
+        
+        </div>
+    </div><!-- /.container-fluid -->
+    </nav>
+    <div class="container">
+    <div class="row">
+        <div class="content">
+            <h1 id="installing-kubernetes">Installing Kubernetes</h1>
+<p>By the end of this exercise, you should be able to:</p>
+<ul>
+<li>Set up a Kubernetes cluster with one master and two nodes</li>
+</ul>
+<h2 id="initializing-kubernetes">Initializing Kubernetes</h2>
+<ol>
+<li><p>On <code>node-0</code>, initialize the cluster with <code>kubeadm</code>:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ sudo kubeadm init --pod-network-cidr=192.168.0.0/16 \
+    --ignore-preflight-errors=SystemVerification \
+    --control-plane-endpoint $(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+</code></pre>
+<p>If successful, the output will end with a join command:</p>
+<pre><code class="lang-bash">...
+You can now join any number of machines by running the following on each node
+as root:
+
+  kubeadm join 10.10.29.54:6443 --token xxx --discovery-token-ca-cert-hash sha256:yyy
+</code></pre>
+</li>
+<li><p>To start using your cluster, you need to run:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ mkdir -p $HOME/.kube
+[centos@node-0 ~]$ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+[centos@node-0 ~]$ sudo chown $(id -u):$(id -g) $HOME/.kube/config
+</code></pre>
+</li>
+<li><p>List all your nodes in the cluster:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl get nodes
+</code></pre>
+<p>Which should output something like:</p>
+<pre><code class="lang-bash">NAME      STATUS     ROLES     AGE       VERSION
+node-0    NotReady   master    2h        v1.11.1
+</code></pre>
+<p>The <code>NotReady</code> status indicates that we must install a network for our cluster.</p>
+</li>
+<li><p>Let&#39;s install the Calico network driver:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl apply -f https://bit.ly/2CubzwM
+</code></pre>
+</li>
+<li><p>After a moment, if we list nodes again, ours should be ready:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl get nodes -w
+NAME      STATUS     ROLES     AGE       VERSION
+node-0    NotReady   master    1m        v1.11.1
+node-0    NotReady   master    1m        v1.11.1
+node-0    NotReady   master    1m        v1.11.1
+node-0    Ready     master    2m        v1.11.1
+node-0    Ready     master    2m        v1.11.1
+</code></pre>
+</li>
+<li><p>Execute the join command you found above when initializing Kubernetes on <code>node-1</code> and <code>node-2</code> (you&#39;ll need to add <code>sudo</code> to the start, and <code>--ignore-preflight-errors=SystemVerification</code> to the end), and then check the status back on <code>node-0</code>:</p>
+<pre><code class="lang-bash">[centos@node-1 ~]$ sudo kubeadm join ... --ignore-preflight-errors=SystemVerification
+[centos@node-2 ~]$ sudo kubeadm join ... --ignore-preflight-errors=SystemVerification
+[centos@node-0 ~]$ kubectl get nodes
+</code></pre>
+<p>After a few moments, there should be three nodes listed - all with the <code>Ready</code> status.</p>
+</li>
+<li><p>Let&#39;s see what system pods are running on our cluster:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl get pods -n kube-system
+</code></pre>
+<p>which results in something similar to this:</p>
+<pre><code class="lang-bash">NAME                                       READY     STATUS    RESTARTS   AGE
+calico-etcd-pfhj4                          1/1       Running   1          5h
+calico-kube-controllers-559c657d6d-ztk8c   1/1       Running   1          5h
+calico-node-89k9v                          2/2       Running   0          4h
+calico-node-brqxz                          2/2       Running   2          5h
+calico-node-zsmh2                          2/2       Running   1          41s
+coredns-78fcdf6894-gtj87                   1/1       Running   1          5h
+coredns-78fcdf6894-nz2kw                   1/1       Running   1          5h
+etcd-node-0                                1/1       Running   1          5h
+kube-apiserver-node-0                      1/1       Running   1          5h
+kube-controller-manager-node-0             1/1       Running   1          5h
+kube-proxy-qxfzt                           1/1       Running   0          41s
+kube-proxy-vgrtm                           1/1       Running   0          4h
+kube-proxy-ws2z5                           1/1       Running   0          5h
+kube-scheduler-node-0                      1/1       Running   1          5h
+</code></pre>
+<p>We can see the pods running on the master: etcd, api-server, controller manager and scheduler, as well as calico and DNS infrastructure pods deployed when we installed calico. </p>
+</li>
+</ol>
+<h2 id="conclusion">Conclusion</h2>
+<p>At this point, we have a Kubernetes cluster with one master and two workers ready to accept workloads. </p>
+
+        </div>        
+    </div>
+    <div class="row">
+        <ul class="mt-article-pagination" style="display:block;">
+        </ul>
+    </div>
+</div>
+    <div class="footer"></div>
+</body>

@@ -1,0 +1,270 @@
+<html>
+<head>
+    <title>kube-orchestration.md</title>
+    <link href='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u' crossorigin='anonymous'>
+    <link href="../../app.css" rel="stylesheet" >
+</head>
+<body>
+    <nav class="navbar navbar-default">
+    <div class="container">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../index.html">Excercises</a> 
+        <h1 class="navbar-title"><!-- insert docker icon--></h1>
+        
+        </div>
+    </div><!-- /.container-fluid -->
+    </nav>
+    <div class="container">
+    <div class="row">
+        <div class="content">
+            <h1 id="kubernetes-orchestration">Kubernetes Orchestration</h1>
+<p>By the end of this exercise, you should be able to:</p>
+<ul>
+<li>Define and launch basic pods, replicaSets and deployments using <code>kubectl</code></li>
+<li>Get metadata, configuration and state information about a kubernetes object using <code>kubectl describe</code></li>
+<li>Update an image for a pod in a running kubernetes deployment</li>
+</ul>
+<h2 id="creating-pods">Creating Pods</h2>
+<ol>
+<li><p>On your master node, create a yaml file <code>pod.yaml</code> to describe a simple pod with the following content:</p>
+<pre><code class="lang-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  name: demo
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.7.9
+</code></pre>
+</li>
+<li><p>Deploy your pod:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl create -f pod.yaml
+</code></pre>
+</li>
+<li><p>Confirm your pod is running:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl get pod demo
+</code></pre>
+</li>
+<li><p>Get some metadata about your pod:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl describe pod demo
+</code></pre>
+</li>
+<li><p>Delete your pod:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl delete pod demo
+</code></pre>
+</li>
+<li><p>Modify <code>pod.yaml</code> to create a second container inside your pod:</p>
+<pre><code class="lang-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  name: demo
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.7.9
+  - name: sidecar
+    image: centos:7
+    command: [&quot;ping&quot;]
+    args: [&quot;8.8.8.8&quot;]
+</code></pre>
+</li>
+<li><p>Deploy this new pod, and create a bash shell inside the container named <code>sidecar</code>:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl create -f pod.yaml
+[centos@node-0 ~]$ kubectl exec -c=sidecar -it demo -- /bin/bash
+</code></pre>
+</li>
+<li><p>From within the <code>sidecar</code> container, fetch the nginx landing page on the default port 80 using <code>localhost</code>:</p>
+<pre><code class="lang-bash">[root@demo /]# curl localhost:80 
+</code></pre>
+<p>You should see the html of the nginx landing page. Note <strong>these containers can reach each other on localhost</strong>, meaning they are sharing a network namespace. Now list the processes in your <code>sidecar</code> container:</p>
+<pre><code class="lang-bash">[root@demo /]# ps -aux
+</code></pre>
+<p>You should see the <code>ping</code> process we containerized, the shell we created to explore this container using <code>kubectl exec</code>, and the <code>ps</code> process itself - but no <code>nginx</code>. While a network namespace is shared between the containers, they still have their own PID namespace (for example).</p>
+</li>
+<li><p>Finally, remember to exit out of this pod, and delete it:</p>
+<pre><code class="lang-bash">[root@demo /]# exit
+[centos@node-0 ~]$ kubectl delete pod demo
+</code></pre>
+</li>
+</ol>
+<h2 id="creating-replicasets">Creating ReplicaSets</h2>
+<ol>
+<li><p>On your master <code>node-0</code>, create a yaml file <code>replicaset.yaml</code> to describe a simple replicaSet with the following content:</p>
+<pre><code class="lang-yaml">apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: rs-demo
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      component: reverse-proxy
+  template:
+    metadata:
+      labels:
+        component: reverse-proxy
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+</code></pre>
+<p>Notice especially the <code>replicas</code> key, which defines how many copies of this pod to create, and the <code>template</code> section; this defines the pod to replicate, and is described almost exactly like the first pod definition we created above. The difference here is the required presence of the <code>labels</code> key in the pod&#39;s metadata, which must match the <code>selector -&gt; matchLabels</code> item in the specification of the replicaSet.</p>
+</li>
+<li><p>Deploy your replicaSet, and get some state information about it:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl create -f replicaset.yaml
+[centos@node-0 ~]$ kubectl describe replicaset rs-demo
+</code></pre>
+<p>After a few moments, you should see something like</p>
+<pre><code class="lang-bash">Name:         rs-demo
+Namespace:    default
+Selector:     component=reverse-proxy
+Labels:       component=reverse-proxy
+Annotations:  &lt;none&gt;
+Replicas:     3 current / 3 desired
+Pods Status:  3 Running / 0 Waiting / 0 Succeeded / 0 Failed
+Pod Template:
+  Labels:  component=reverse-proxy
+  Containers:
+   nginx:
+    Image:        nginx:1.7.9
+    Port:         &lt;none&gt;
+    Host Port:    &lt;none&gt;
+    Environment:  &lt;none&gt;
+    Mounts:       &lt;none&gt;
+  Volumes:        &lt;none&gt;
+Events:
+  Type    Reason            Age   From                   Message
+  ----    ------            ----  ----                   -------
+  Normal  SuccessfulCreate  35s   replicaset-controller  Created pod: rs-demo-jxmjj
+  Normal  SuccessfulCreate  35s   replicaset-controller  Created pod: rs-demo-dmdtf
+  Normal  SuccessfulCreate  35s   replicaset-controller  Created pod: rs-demo-j62fx
+</code></pre>
+<p>Note the replicaSet has created three pods as requested, and will reschedule them if they exit.</p>
+</li>
+<li><p>Try killing off one of your pods, and reexamining the output of the above <code>describe</code> command. The <code>&lt;pod name&gt;</code> comes from the last three lines in the output above, such as <code>rs-demo-jxmjj</code>:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl delete pod &lt;pod name&gt;
+[centos@node-0 ~]$ kubectl describe replicaset rs-demo
+</code></pre>
+<p>The dead pod gets rescheduled by the replicaSet, similar to a failed task in Docker Swarm.</p>
+</li>
+<li><p>Delete your replicaSet:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl delete replicaset rs-demo
+</code></pre>
+</li>
+</ol>
+<h2 id="creating-deployments">Creating Deployments</h2>
+<ol>
+<li><p>On your master <code>node-0</code>, create a yaml file <code>deployment.yaml</code> to describe a simple deployment with the following content:</p>
+<pre><code class="lang-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+</code></pre>
+<p>Notice this is the exact same structure as your replicaSet yaml above, but this time the <code>kind</code> is <code>Deployment</code>. Deployments create a replicaSet of pods, but add some deployment management functionality on top of them, such as rolling updates and rollback.</p>
+</li>
+<li><p>Spin up your deployment, and get some state information:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl create -f deployment.yaml
+[centos@node-0 ~]$ kubectl describe deployment nginx-deployment
+</code></pre>
+<p>The <code>describe</code> command should return something like:</p>
+<pre><code class="lang-bash">Name:                   nginx-deployment
+Namespace:              default
+CreationTimestamp:      Thu, 24 May 2018 04:29:18 +0000
+Labels:                 &lt;none&gt;
+Annotations:            deployment.kubernetes.io/revision=1
+Selector:               app=nginx
+Replicas:               3 desired | 3 updated | 3 total | 3 available | 0 unavailable
+StrategyType:           RollingUpdate
+MinReadySeconds:        0
+RollingUpdateStrategy:  25% max unavailable, 25% max surge
+Pod Template:
+  Labels:  app=nginx
+  Containers:
+   nginx:
+    Image:        nginx:1.7.9
+    Port:         &lt;none&gt;
+    Host Port:    &lt;none&gt;
+    Environment:  &lt;none&gt;
+    Mounts:       &lt;none&gt;
+  Volumes:        &lt;none&gt;
+Conditions:
+  Type           Status  Reason
+  ----           ------  ------
+  Available      True    MinimumReplicasAvailable
+  Progressing    True    NewReplicaSetAvailable
+OldReplicaSets:  &lt;none&gt;
+NewReplicaSet:   nginx-deployment-85f7784776 (3/3 replicas created)
+Events:
+  Type    Reason             Age   From                   Message
+  ----    ------             ----  ----                   -------
+  Normal  ScalingReplicaSet  10s   deployment-controller  Scaled up replica set 
+                                                            nginx-deployment-xxx to 3
+</code></pre>
+<p>Note the very last line, indicating this deployment actually created a replicaSet which it used to scale up to three pods.</p>
+</li>
+<li><p>List your replicaSets and pods:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl get replicaSet
+
+NAME                          DESIRED   CURRENT   READY   AGE
+nginx-deployment-79d4c74645   3         3         3       17s
+
+[centos@node-0 ~]$ kubectl get pod
+
+NAME                                READY   STATUS    RESTARTS   AGE
+nginx-deployment-79d4c74645-9mtzm   1/1     Running   0          22s
+nginx-deployment-79d4c74645-k7wml   1/1     Running   0          22s
+nginx-deployment-79d4c74645-rrfrf   1/1     Running   0          22s
+</code></pre>
+<p>You should see one replicaSet and three pods created by your deployment, similar to the above.</p>
+</li>
+<li><p>Upgrade the nginx image from <code>1.7.9</code> to <code>1.9.1</code>:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl set image deployment/nginx-deployment nginx=nginx:1.9.1
+</code></pre>
+</li>
+<li><p>After a few seconds, <code>kubectl describe</code> your deployment as above again. You should see that the image has been updated, and that the old replicaSet has been scaled down to 0 replicas, while a new replicaSet (with your updated image) has been scaled up to 3 pods. List your replicaSets one more time:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl get replicaSets
+</code></pre>
+<p>You should see something like</p>
+<pre><code class="lang-bash">NAME                          DESIRED   CURRENT   READY     AGE
+nginx-deployment-69df9ccbf8   3         3         3         4m
+nginx-deployment-85f7784776   0         0         0         9m
+</code></pre>
+<p>Do a <code>kubectl describe replicaSet &lt;replicaSet scaled down to 0&gt;</code>; you should see that while no pods are running for this replicaSet, the old replicaSet&#39;s definition is still around so we can easily roll back to this version of the app if we need to.</p>
+</li>
+<li><p>Clean up your cluster:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl delete deployment nginx-deployment
+</code></pre>
+</li>
+</ol>
+<h2 id="conclusion">Conclusion</h2>
+<p>In this exercise, you explored the basic scheduling objects of pods, replicaSets, and deployments. Each object is responsible for a different part of the orchestration stack; pods are the basic unit of scheduling, replicaSets do keep-alive and scaling, and deployments provide update and rollback functionality. In a sense, these objects all &#39;nest&#39; one inside the next; by creating a deployment, you implicitly created a replicaSet which in turn created the corresponding pods. In most cases, you&#39;re better off creating deployments rather than replicaSets or pods directly; this way, you get all the orchestrating scheduling features you would expect in analogy to a Docker Swarm service.</p>
+
+        </div>        
+    </div>
+    <div class="row">
+        <ul class="mt-article-pagination" style="display:block;">
+        </ul>
+    </div>
+</div>
+    <div class="footer"></div>
+</body>

@@ -1,0 +1,284 @@
+<html>
+<head>
+    <title>provisioning-kube-config.md</title>
+    <link href='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u' crossorigin='anonymous'>
+    <link href="../../app.css" rel="stylesheet" >
+</head>
+<body>
+    <nav class="navbar navbar-default">
+    <div class="container">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="../../index.html">Excercises</a> 
+        <h1 class="navbar-title"><!-- insert docker icon--></h1>
+        
+        </div>
+    </div><!-- /.container-fluid -->
+    </nav>
+    <div class="container">
+    <div class="row">
+        <div class="content">
+            <h1 id="provisioning-kube-configuration">Provisioning Kube Configuration</h1>
+<p>By the end of this exercise, you should be able to:</p>
+<ul>
+<li>write kube yaml describing secrets and config maps, and associate them with pods and deployments.</li>
+</ul>
+<h2 id="provisioning-configmaps">Provisioning ConfigMaps</h2>
+<ol>
+<li><p>Create a file on <code>node-0</code> called <code>env-config</code> with the following content:</p>
+<pre><code class="lang-bash">user=moby
+db=mydb
+</code></pre>
+</li>
+<li><p>Create a configMap that parses each line in this file as a separate key/value pair:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl create configmap dbconfig --from-env-file=env-config
+</code></pre>
+</li>
+<li><p>Ask kubectl to repeat this configMap back to us, in yaml:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl get configmap dbconfig -o yaml
+
+apiVersion: v1
+data:
+  db: mydb
+  user: moby
+kind: ConfigMap
+metadata:
+  creationTimestamp: &quot;2019-01-08T15:41:31Z&quot;
+  name: dbconfig
+  namespace: default
+  resourceVersion: &quot;709821&quot;
+  selfLink: /api/v1/namespaces/default/configmaps/dbconfig
+  uid: df14e7a7-135b-11e9-87ee-0242ac11000a
+</code></pre>
+<p>The key/value pairs parsed from <code>env-config</code> are visible under the <code>data</code> key in this file; we could have created the same configMap declaratively via <code>kubectl create -f &lt;yaml filename&gt;</code> like we&#39;ve been doing so far, using this yaml.</p>
+<blockquote>
+<p><strong>Imperative vs. Declarative kubectl commands</strong>: <code>kubectl</code> supports two syntaxes for most actions: <em>imperative</em>, which specifies the action to take (like <code>kubectl create pod ...</code>, <code>kubectl describe deployment ...</code> etc), and <em>declarative</em>, which specifies objects in a yaml file and creates them with <code>kubectl create -f &lt;yaml filename&gt;</code>. Which to use is a matter of preference; in general, I recommend <em>declarative</em> (ie file based) commands for <em>any action that changes the state of the system</em> (ie create / update / destroy operations) so that these changes can be based off of easily tracked and version controlled config files, and <em>imperative</em> commands only for gathering information without changing anything (<code>kubectl get ...</code>, <code>kubectl decribe ...</code>). These are not strict rules (we just saw a convenient example of the imperative <code>kubectl create configmap</code> above, useful since an env-file specification is so much easier to write than the corresponding yaml), but lend themselves well to good record-keeping, automation and version control for your workloads.</p>
+</blockquote>
+</li>
+<li><p>Describe a postgres database in a pod with the following <code>postgres.yaml</code>:</p>
+<pre><code class="lang-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  name: dbdemo
+  namespace: default
+spec:
+  containers:
+  - name: pg
+    image: postgres:9.6
+    env:
+      - name: POSTGRES_USER
+        valueFrom:
+          configMapKeyRef:
+            name: dbconfig
+            key: user
+      - name: POSTGRES_DB
+        valueFrom:
+          configMapKeyRef:
+            name: dbconfig
+            key: db
+      - name: POSTGRES_PASSWORD
+        value: mypassword
+</code></pre>
+<p>Here we&#39;re populating the environment variables <code>POSTGRES_USER</code> and <code>POSTGRES_DB</code> from our configMap, under the <code>containers:env</code> specification. Notice that the pod definition itself makes no reference to the literal values of these environment variables; we can reconfigure our database (say for deployment in a different environment) by swapping out our <code>dbconfig</code> configMap, and leaving our pod definition untouched.</p>
+<p>Deploy your pod as usual with <code>kubectl create -f postgres.yaml</code>.</p>
+</li>
+<li><p>Describe your <code>dbdemo</code> pod:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl describe pod dbdemo
+
+...
+
+Environment:
+  POSTGRES_USER:  &lt;set to the key &#39;user&#39; of config map &#39;dbconfig&#39;&gt;  Optional: false
+  POSTGRES_DB:    &lt;set to the key &#39;db&#39; of config map &#39;dbconfig&#39;&gt;    Optional: false
+
+...
+</code></pre>
+<p>You should see a block like the above, indicating that the listed environment variables are being populated from the configMap, as expected.</p>
+</li>
+<li><p>Attach to your postgres database using the username and database name you specified in <code>config.yaml</code>, to prove to yourself the configMap information actually got consumed:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl exec -it -c pg dbdemo -- psql -U moby -d mydb
+
+mydb=# \du
+                                   List of roles
+ Role name |                         Attributes                         | Member of 
+-----------+------------------------------------------------------------+-----------
+ moby      | Superuser, Create role, Create DB, Replication, Bypass RLS | {}
+
+mydb=# \q
+</code></pre>
+<p>The user and database got created with the names we defined.</p>
+</li>
+<li><p>Delete your pod with <code>kubectl delete -f postgres.yaml</code>.</p>
+</li>
+<li><p>So far, we&#39;ve used the environment variables postgres looks for for setting user and database names. Some config, however, is expected as a file rather than an environment variable; configMaps can provision config files as well as environment config. Create a database initialization script <code>db-init.sh</code>:</p>
+<pre><code class="lang-bash">#!/bin/bash
+set -e    
+
+psql -v ON_ERROR_STOP=1 --username &quot;$POSTGRES_USER&quot; --dbname &quot;$POSTGRES_DB&quot; &lt;&lt;-EOSQL
+    CREATE TABLE PRODUCTS(PRICE FLOAT, NAME TEXT);
+    INSERT INTO PRODUCTS VALUES(&#39;18.95&#39;, &#39;widget&#39;);
+    INSERT INTO PRODUCTS VALUES(&#39;1.45&#39;, &#39;sprocket&#39;);
+EOSQL
+</code></pre>
+</li>
+<li><p>Turn this entire file into a configMap:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl create configmap dbinit --from-file=db-init.sh
+</code></pre>
+</li>
+<li><p>We&#39;ll provision this config file to our postgres container by mounting it in as a volume to the correct path; postgres will run all <code>.sh</code> files found at the path <code>/docker-entrypoint-initdb.d</code> upon initialization. Change your <code>postgres.yaml</code> file to look like this:</p>
+<pre><code class="lang-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  name: dbdemo
+  namespace: default
+spec:
+  containers:
+  - name: pg
+    image: postgres:9.6
+    volumeMounts:
+    - name: dbinit-vol
+      mountPath: /docker-entrypoint-initdb.d
+    env:
+      - name: POSTGRES_USER
+        valueFrom:
+          configMapKeyRef:
+            name: dbconfig
+            key: user
+      - name: POSTGRES_DB
+        valueFrom:
+          configMapKeyRef:
+            name: dbconfig
+            key: db
+      - name: POSTGRES_PASSWORD
+        value: mypassword
+  volumes:
+    - name: dbinit-vol
+      configMap:
+        name: dbinit
+</code></pre>
+<p>Here we&#39;ve added the <code>volumeMounts</code> key describing which volume (<code>dbinit-vol</code>) to mount in the container and at what path (<code>/docker-entrypoint-initdb.d</code>). We&#39;ve also added the <code>volumes</code> key to define the volumes themselves; we create one volume named <code>dbinit-vol</code>, populated from the files contained in the configMap <code>dbinit</code> we just created.</p>
+</li>
+<li><p>Deploy postgres with this configuration, and check that the database initialization script actually worked:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl create -f postgres.yaml
+[centos@node-0 ~]$ kubectl exec -it -c pg dbdemo -- psql -U moby -d mydb
+
+mydb=# SELECT * FROM products;
+
+ price |   name   
+-------+----------
+ 18.95 | widget
+  1.45 | sprocket
+(2 rows)
+
+mydb=# \q    
+</code></pre>
+<p>Our table was initialized via our config file, as expected. After exiting your pod, delete it with <code>kubectl delete -f postgres.yaml</code>.</p>
+</li>
+</ol>
+<h2 id="provisioning-secrets">Provisioning Secrets</h2>
+<p>So far, we&#39;ve provisioned non-sensitive data to our pod, but often we want options for added security when provisioning things like passwords or other access tokens. For this, Kubernetes maintains a separate config provisioning tool, <em>secrets</em>.</p>
+<ol>
+<li><p>Let&#39;s set a custom password for our database using a Kubernetes secret. Create a file <code>secret.yaml</code> with the following content:</p>
+<pre><code class="lang-yaml">apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-pwd
+  namespace: default
+type: Opaque
+stringData:
+  password: &quot;mypassword&quot;
+</code></pre>
+<p>Create the secret via <code>kubectl create -f secret.yaml</code>, This will create a secret called <code>postgres-pwd</code> that encodes our password.</p>
+<blockquote>
+<p>Note: Of course it&#39;s not recommended to leave your secret unencrypted in a file like <code>secret.yaml</code>; in practice, we&#39;d delete this file as soon as the secret is created.</p>
+</blockquote>
+</li>
+<li><p>Update your <code>postgres.yaml</code> definition to look like this:</p>
+<pre><code class="lang-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  name: dbdemo
+  namespace: default
+spec:
+  containers:
+  - name: pg
+    image: postgres:9.6
+    volumeMounts:
+    - name: dbinit-vol
+      mountPath: /docker-entrypoint-initdb.d
+    env:
+      - name: POSTGRES_USER
+        valueFrom:
+          configMapKeyRef:
+            name: dbconfig
+            key: user
+      - name: POSTGRES_DB
+        valueFrom:
+          configMapKeyRef:
+            name: dbconfig
+            key: db
+      - name: POSTGRES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: postgres-pwd
+            key: password
+  volumes:
+    - name: dbinit-vol
+      configMap:
+        name: dbinit
+</code></pre>
+<p>This is exactly the same as above, but adds the block at the bottom which populates the <code>POSTGRES_PASSWORD</code> environment variable in the <code>pg</code> container with the value found under the <code>password</code> key in the <code>postgres-pwd</code> secret.</p>
+</li>
+<li><p>Create your pod, and dump its postgres environment variables:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl create -f postgres.yaml
+[centos@node-0 ~]$ kubectl exec -it -c pg dbdemo -- env | grep POSTGRES
+
+POSTGRES_USER=moby
+POSTGRES_DB=mydb
+POSTGRES_PASSWORD=mypassword
+</code></pre>
+<p>The <code>POSTGRES_PASSWORD</code> has been provisioned from your Kube secret.</p>
+</li>
+<li><p>Note that anyone with <code>kubectl get secret</code> permissions can recover your secret as follows:</p>
+<pre><code class="lang-bash">[centos@node-0 ~]$ kubectl get secret postgres-pwd -o yaml
+
+apiVersion: v1
+data:
+  password: bXlwYXNzd29yZA==
+kind: Secret
+metadata:
+  creationTimestamp: &quot;2019-01-07T18:42:01Z&quot;
+  name: postgres-pwd
+  namespace: default
+  resourceVersion: &quot;604412&quot;
+  selfLink: /api/v1/namespaces/default/secrets/postgres-pwd
+  uid: ebb6f645-12ab-11e9-87ee-0242ac11000a
+type: Opaque
+
+[centos@node-0 ~]$ echo &#39;bXlwYXNzd29yZA==&#39; | base64 --decode
+
+mypassword
+</code></pre>
+<p><em>Challenge</em>: the secret password can also be recovered in plain text on the node hosting the postgres pod. Can you find it?</p>
+</li>
+<li><p>As usual, clean up by deleting the pods, configMaps, and secret you created in this exercise.</p>
+</li>
+</ol>
+<h2 id="conclusion">Conclusion</h2>
+<p>In this exercise, we looked at configMaps and secrets, two tools for provisioning information to your deployments. When deciding where to place configuration, it can help to prioritize designing for reusability; in the postgres example we saw, we separated out all the environment config from the pod definition, so the same pod yaml could be migrated from environment to environment with no changes; all the environment specific data was captured in the configMaps and secret. If you find yourself having to do heavy reconfiguration of your pods and deployments (or even images) as you migrate from one environment to another, consider if it would be possible to separate this configuration from your pod definition using a configMap or secret.</p>
+
+        </div>        
+    </div>
+    <div class="row">
+        <ul class="mt-article-pagination" style="display:block;">
+        </ul>
+    </div>
+</div>
+    <div class="footer"></div>
+</body>
